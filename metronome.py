@@ -8,6 +8,7 @@ class MetronomeApp(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title('Metronome 1.0')
+        self.sound_option_var = tk.IntVar(value=1)
 
         window_width, window_height = 400, 200
         screen_width = self.winfo_screenwidth()  # Largura da tela do monitor
@@ -42,21 +43,22 @@ class MetronomeApp(tk.Tk):
         self.builtin_sound_var = tk.IntVar(value=1)
         self.wave_file_var = tk.IntVar()
 
-        # Configurações de som incorporado e seleção de arquivo WAV
+        # Botão de rádio para som incorporado
         builtin_sound_radio = tk.Radiobutton(
             tick_settings_frame,
             text='Built-in sound',
-            variable=self.builtin_sound_var,
+            variable=self.sound_option_var,
             value=1,
-            command=self.on_builtin_sound_selection
+            command=self.on_radio_change
         )
 
+        # Botão de rádio para seleção de arquivo WAV
         wave_file_radio = tk.Radiobutton(
             tick_settings_frame,
             text='Wave File',
-            variable=self.wave_file_var,
-            value=1,
-            command=self.on_wave_file_radio_change
+            variable=self.sound_option_var,
+            value=2,
+            command=self.on_radio_change
         )
 
         builtin_sound_radio.pack(anchor=tk.W)
@@ -91,15 +93,20 @@ class MetronomeApp(tk.Tk):
         self.start_stop_button = tk.Button(start_stop_frame, text='Start/Stop', command=self.toggle_metronome)
         self.start_stop_button.pack(side=tk.TOP, pady=5)
 
+    def on_radio_change(self):
+        selected_option = self.sound_option_var.get()
+        if selected_option == 1:
+            self.on_builtin_sound_selection()
+        elif selected_option == 2:
+            self.select_wave_file()
+
     def spacebar_toggle(self, event):
         self.toggle_metronome()
 
     def on_builtin_sound_selection(self):
-        if self.builtin_sound_var.get() == 1:
-            self.stop_metronome()  # Parar o metrônomo antes de carregar um novo arquivo de som
-            self.click_sound = 'click.wav'
-            mixer.music.load(self.click_sound)
-            self.wave_file_var.set(0)  # Garantir que a outra variável de rádio esteja desmarcada
+        self.stop_metronome()  # Parar o metrônomo antes de carregar um novo arquivo de som
+        self.click_sound = 'click.wav'
+        mixer.music.load(self.click_sound)
 
     def on_wave_file_radio_change(self):
         if self.wave_file_var.get() == 1:
@@ -116,22 +123,18 @@ class MetronomeApp(tk.Tk):
             self.start_metronome()
 
     def select_wave_file(self):
-        if self.wave_file_var.get():
-            self.stop_metronome()  # Parar o metrônomo antes de carregar um novo arquivo de som
-            file_path = filedialog.askopenfilename(
-                filetypes=[("Wave Files", "*.wav")], 
-                title="Select a .wav file"
-            )
-            if file_path:
-                self.click_sound = file_path
-                mixer.music.load(self.click_sound)  # Carrega o arquivo .wav selecionado
-                # Se você quiser iniciar o metrônomo automaticamente depois de carregar um arquivo, descomente a próxima linha
-                # self.start_metronome()
-            else:
-                # Se o usuário cancelou, redefinir para o som incorporado
-                self.wave_file_var.set(0)
-                self.builtin_sound_var.set(1)
-                mixer.music.load('click.wav')  # Carregar o som padrão
+        self.stop_metronome()  # Parar o metrônomo antes de carregar um novo arquivo de som
+        file_path = filedialog.askopenfilename(
+            filetypes=[("Wave Files", "*.wav")], 
+            title="Select a .wav file"
+        )
+        if file_path:
+            self.click_sound = file_path
+            mixer.music.load(self.click_sound)  # Carrega o arquivo .wav selecionado
+        else:
+            # Se o usuário cancelou, redefinir para o som incorporado
+            self.sound_option_var.set(1)  # Isso vai disparar o on_radio_change para 'Built-in sound'
+            mixer.music.load('click.wav')  # Carregar o som padrão
 
     def start_metronome(self):
         try:

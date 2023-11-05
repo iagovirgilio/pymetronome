@@ -40,9 +40,6 @@ class MetronomeApp(tk.Tk):
         tick_settings_frame = tk.LabelFrame(self, text='Tick Settings...')
         tick_settings_frame.pack(pady=5, padx=10, fill=tk.X)
 
-        self.builtin_sound_var = tk.IntVar(value=1)
-        self.wave_file_var = tk.IntVar()
-
         # Botão de rádio para som incorporado
         builtin_sound_radio = tk.Radiobutton(
             tick_settings_frame,
@@ -100,13 +97,13 @@ class MetronomeApp(tk.Tk):
         elif selected_option == 2:
             self.select_wave_file()
 
-    def spacebar_toggle(self, event):
-        self.toggle_metronome()
-
     def on_builtin_sound_selection(self):
         self.stop_metronome()  # Parar o metrônomo antes de carregar um novo arquivo de som
-        self.click_sound = 'click.wav'
-        mixer.music.load(self.click_sound)
+        self.click_sound = 'click.wav'  # Define o som de clique padrão
+        mixer.music.load(self.click_sound)  # Carrega o som de clique padrão
+
+    def spacebar_toggle(self, event):
+        self.toggle_metronome()
 
     def on_wave_file_radio_change(self):
         if self.wave_file_var.get() == 1:
@@ -131,10 +128,10 @@ class MetronomeApp(tk.Tk):
         if file_path:
             self.click_sound = file_path
             mixer.music.load(self.click_sound)  # Carrega o arquivo .wav selecionado
+            self.sound_option_var.set(2)  # Garantir que o rádio 'Wave File' fique marcado
         else:
             # Se o usuário cancelou, redefinir para o som incorporado
             self.sound_option_var.set(1)  # Isso vai disparar o on_radio_change para 'Built-in sound'
-            mixer.music.load('click.wav')  # Carregar o som padrão
 
     def start_metronome(self):
         try:

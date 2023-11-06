@@ -13,23 +13,21 @@ Um simples metrônomo, feito em Python, para estudar música.
 
 O ideal é criar um ambiente virtual com o Python 3.12.
 
-Instale PyMetronome com pip.
+Instale PyMetronome com pip após clonar o projeto.
 
 ```bash
-  git clone
-  cd metronome
   pip install -r requirements.txt
 ```
 
 
 Execute o código com:
 ```bash
-  python metronome.py
+  python main.py
 ```
     
 ## Criando executável
 
 ```bash
-pyinstaller --onefile --windowed --add-data "click.wav;." --icon="metronome.ico" metronome.py
+pyinstaller --onefile --windowed --add-data "click.wav;." --icon="metronome.ico" main.py
 ```
 

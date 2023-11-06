@@ -10,12 +10,15 @@ class MetronomeApp(tk.Tk):
         self.title('Metronome 1.0')
         self.sound_option_var = tk.IntVar(value=1)
 
-        window_width, window_height = 400, 200
+        window_width, window_height = 350, 150  # Ajuste o tamanho da janela aqui
         screen_width = self.winfo_screenwidth()  # Largura da tela do monitor
         screen_height = self.winfo_screenheight()  # Altura da tela do monitor
         center_x = int(screen_width/2 - window_width / 2)
         center_y = int(screen_height/2 - window_height / 2)
         self.geometry(f'{window_width}x{window_height}+{center_x}+{center_y}')
+        
+        # Define window to not be resizable
+        self.resizable(False, False)
 
         # Definir o diretório de dados dependendo se o aplicativo está congelado ou não
         if getattr(sys, 'frozen', False):
@@ -34,12 +37,15 @@ class MetronomeApp(tk.Tk):
         self.bind('<space>', self.spacebar_toggle)
         self.running = False
         self.after_id = None  # Estado do metrônomo
-        self.resizable(False, False)
 
     def create_widgets(self):
-        # Configurações dos ticks
-        tick_settings_frame = tk.LabelFrame(self, text='Tick Settings...')
-        tick_settings_frame.pack(pady=5, padx=10, fill=tk.X)
+        # Crie um novo Frame pai que irá conter o tick_settings_frame e o start_stop_frame
+        top_frame = tk.Frame(self)
+        top_frame.pack(pady=5, padx=10, fill=tk.X)
+
+        # Agora o tick_settings_frame será colocado à esquerda
+        tick_settings_frame = tk.LabelFrame(top_frame, text='Tick Settings...')
+        tick_settings_frame.pack(side=tk.LEFT, fill=tk.X, expand=True)
 
         # Botão de rádio para som incorporado
         builtin_sound_radio = tk.Radiobutton(
@@ -61,6 +67,13 @@ class MetronomeApp(tk.Tk):
 
         builtin_sound_radio.pack(anchor=tk.W)
         wave_file_radio.pack(anchor=tk.W)
+
+        # Agora o start_stop_frame será colocado à direita do tick_settings_frame
+        start_stop_frame = tk.Frame(top_frame)
+        start_stop_frame.pack(side=tk.LEFT, padx=10)
+
+        self.start_stop_button = tk.Button(start_stop_frame, text='Start/Stop', command=self.toggle_metronome)
+        self.start_stop_button.pack(side=tk.TOP, pady=5)
 
         # Configurações de tempo
         tempo_settings_frame = tk.Frame(self)
@@ -84,12 +97,6 @@ class MetronomeApp(tk.Tk):
         self.tempo_entry.bind('<KeyRelease>', self.update_slider_from_entry)
         self.tempo_entry.insert(0, '120')  # BPM padrão
         self.tempo_entry.pack(side=tk.LEFT)
-
-        # Botão para iniciar/parar
-        start_stop_frame = tk.Frame(tempo_settings_frame)
-        start_stop_frame.pack(fill=tk.X)
-        self.start_stop_button = tk.Button(start_stop_frame, text='Start/Stop', command=self.toggle_metronome)
-        self.start_stop_button.pack(side=tk.TOP, pady=5)
 
     def on_radio_change(self):
         selected_option = self.sound_option_var.get()

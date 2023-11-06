@@ -34,6 +34,7 @@ class MetronomeApp(tk.Tk):
         self.bind('<space>', self.spacebar_toggle)
         self.running = False
         self.after_id = None  # Estado do metrônomo
+        self.resizable(False, False)
 
     def create_widgets(self):
         # Configurações dos ticks

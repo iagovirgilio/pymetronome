@@ -4,188 +4,189 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 from pygame import mixer
 
+# Constantes
+DEFAULT_BPM = 120
+MIN_BPM = 20
+MAX_BPM = 240
+WINDOW_WIDTH = 350
+WINDOW_HEIGHT = 150
+SOUND_FILE = 'click.wav'
+
 class MetronomeApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title('Metronome 1.0')
-        self.sound_option_var = tk.IntVar(value=1)
-
-        window_width, window_height = 350, 150  # Ajuste o tamanho da janela aqui
-        screen_width = self.winfo_screenwidth()  # Largura da tela do monitor
-        screen_height = self.winfo_screenheight()  # Altura da tela do monitor
-        center_x = int(screen_width/2 - window_width / 2)
-        center_y = int(screen_height/2 - window_height / 2)
-        self.geometry(f'{window_width}x{window_height}+{center_x}+{center_y}')
-        
-        # Define window to not be resizable
-        self.resizable(False, False)
-
-        # Definir o diretório de dados dependendo se o aplicativo está congelado ou não
-        if getattr(sys, 'frozen', False):
-            # O aplicativo está congelado
-            datadir = sys._MEIPASS
-        else:
-            # O aplicativo não está congelado
-            datadir = os.path.dirname(__file__)
-        
-        self.click_sound = os.path.join(datadir, 'click.wav')  # Caminho para o som de clique
-
-        mixer.init()  # Inicializa o módulo mixer
-        mixer.music.load(self.click_sound)  # Carrega o som de clique
-
+        self.initialize_window()
+        self.initialize_mixer()
         self.create_widgets()
-        self.bind('<space>', self.spacebar_toggle)
-        self.running = False
-        self.after_id = None  # Estado do metrônomo
+        self.setup_bindings()
+        
+        self.metronome_running = False
+        self.after_id = None
+
+    def initialize_window(self):
+        self.title('Metronome 1.0')
+        self.set_window_position(WINDOW_WIDTH, WINDOW_HEIGHT)
+        self.resizable(False, False)
+        self.datadir = self.get_data_directory()
+        
+    def initialize_mixer(self):
+        mixer.init()
+        self.click_sound = os.path.join(self.datadir, SOUND_FILE)
+        mixer.music.load(self.click_sound)
+
+    def get_data_directory(self):
+        if getattr(sys, 'frozen', False):
+            return sys._MEIPASS
+        return os.path.dirname(__file__)
+
+    def set_window_position(self, width, height):
+        screen_width = self.winfo_screenwidth()
+        screen_height = self.winfo_screenheight()
+        center_x = int(screen_width/2 - width / 2)
+        center_y = int(screen_height/2 - height / 2)
+        self.geometry(f'{width}x{height}+{center_x}+{center_y}')
 
     def create_widgets(self):
-        # Crie um novo Frame pai que irá conter o tick_settings_frame e o start_stop_frame
+        self.create_top_frame()
+        self.create_tempo_settings_frame()
+
+    def create_top_frame(self):
         top_frame = tk.Frame(self)
         top_frame.pack(pady=5, padx=10, fill=tk.X)
 
-        # Agora o tick_settings_frame será colocado à esquerda
-        tick_settings_frame = tk.LabelFrame(top_frame, text='Tick Settings...')
+        tick_settings_frame = self.create_tick_settings_frame(top_frame)
+        start_stop_frame = self.create_start_stop_frame(top_frame)
+
         tick_settings_frame.pack(side=tk.LEFT, fill=tk.X, expand=True)
-
-        # Botão de rádio para som incorporado
-        builtin_sound_radio = tk.Radiobutton(
-            tick_settings_frame,
-            text='Built-in sound',
-            variable=self.sound_option_var,
-            value=1,
-            command=self.on_radio_change
-        )
-
-        # Botão de rádio para seleção de arquivo WAV
-        wave_file_radio = tk.Radiobutton(
-            tick_settings_frame,
-            text='Wave File',
-            variable=self.sound_option_var,
-            value=2,
-            command=self.on_radio_change
-        )
-
-        builtin_sound_radio.pack(anchor=tk.W)
-        wave_file_radio.pack(anchor=tk.W)
-
-        # Agora o start_stop_frame será colocado à direita do tick_settings_frame
-        start_stop_frame = tk.Frame(top_frame)
         start_stop_frame.pack(side=tk.LEFT, padx=10)
 
-        self.start_stop_button = tk.Button(start_stop_frame, text='Start/Stop', command=self.toggle_metronome)
-        self.start_stop_button.pack(side=tk.TOP, pady=5)
+    def create_tick_settings_frame(self, parent):
+        frame = tk.LabelFrame(parent, text='Tick Settings')
+        self.sound_option_var = tk.IntVar(value=1)
 
-        # Configurações de tempo
+        self.create_radio_button(frame, 'Built-in sound', 1)
+        self.create_radio_button(frame, 'Wave File', 2)
+
+        return frame
+
+    def create_radio_button(self, parent, text, value):
+        radio_button = tk.Radiobutton(
+            parent,
+            text=text,
+            variable=self.sound_option_var,
+            value=value,
+            command=self.handle_sound_selection
+        )
+        radio_button.pack(anchor=tk.W)
+
+    def create_start_stop_frame(self, parent):
+        frame = tk.Frame(parent)
+        self.start_stop_button = tk.Button(frame, text='Start/Stop', command=self.toggle_metronome)
+        self.start_stop_button.pack(side=tk.TOP, pady=5)
+        return frame
+
+    def create_tempo_settings_frame(self):
         tempo_settings_frame = tk.Frame(self)
         tempo_settings_frame.pack(pady=5, padx=10, fill=tk.X)
 
         self.tempo_label = tk.Label(tempo_settings_frame, text='Tempo (BPM)')
         self.tempo_label.pack()
 
-        # Frame para o controle deslizante e caixa de entrada
-        slider_entry_frame = tk.Frame(tempo_settings_frame)
-        slider_entry_frame.pack(fill=tk.X, expand=True)
+        self.create_slider_entry_frame(tempo_settings_frame)
 
-        # Controle deslizante para BPM
-        self.tempo_slider = tk.Scale(slider_entry_frame, from_=20, to=240, orient=tk.HORIZONTAL, length=200)
-        self.tempo_slider.bind('<ButtonRelease-1>', self.on_slider_release)
-        self.tempo_slider.set(120)  # BPM padrão
+    def create_slider_entry_frame(self, parent):
+        frame = tk.Frame(parent)
+        frame.pack(fill=tk.X, expand=True)
+
+        self.tempo_slider = self.create_tempo_slider(frame)
+        self.tempo_entry = self.create_tempo_entry(frame)
+
         self.tempo_slider.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
-
-        # Caixa de entrada para digitar BPM
-        self.tempo_entry = tk.Entry(slider_entry_frame, bd=5, width=5)
-        self.tempo_entry.bind('<KeyRelease>', self.update_slider_from_entry)
-        self.tempo_entry.insert(0, '120')  # BPM padrão
         self.tempo_entry.pack(side=tk.LEFT)
 
-    def on_radio_change(self):
-        selected_option = self.sound_option_var.get()
-        if selected_option == 1:
-            self.on_builtin_sound_selection()
-        elif selected_option == 2:
-            self.select_wave_file()
+    def create_tempo_slider(self, parent):
+        slider = tk.Scale(parent, from_=MIN_BPM, to=MAX_BPM, orient=tk.HORIZONTAL, length=200)
+        slider.bind('<ButtonRelease-1>', self.on_slider_release)
+        slider.set(DEFAULT_BPM)
+        return slider
 
-    def on_builtin_sound_selection(self):
-        self.stop_metronome()  # Parar o metrônomo antes de carregar um novo arquivo de som
-        self.click_sound = 'click.wav'  # Define o som de clique padrão
-        mixer.music.load(self.click_sound)  # Carrega o som de clique padrão
+    def create_tempo_entry(self, parent):
+        entry = tk.Entry(parent, bd=5, width=5)
+        entry.bind('<KeyRelease>', self.update_slider_from_entry)
+        entry.insert(0, str(DEFAULT_BPM))
+        return entry
 
-    def spacebar_toggle(self, event):
-        self.toggle_metronome()
+    def handle_sound_selection(self):
+        self.stop_metronome()
+        self.load_click_sound()
 
-    def on_wave_file_radio_change(self):
-        if self.wave_file_var.get() == 1:
-            self.select_wave_file()
-
-    def on_slider_release(self, event):
-        # Update BPM from slider only when the user releases the mouse button
-        self.update_bpm_from_slider(self.tempo_slider.get())
-
-    def toggle_metronome(self):
-        if self.running:
-            self.stop_metronome()
+    def load_click_sound(self):
+        if self.sound_option_var.get() == 1:
+            self.click_sound = os.path.join(self.datadir, SOUND_FILE)
         else:
-            self.start_metronome()
+            file_path = filedialog.askopenfilename(
+                filetypes=[("Wave Files", "*.wav")], 
+                title="Select a .wav file"
+            )
+            self.click_sound = file_path or self.click_sound
+        mixer.music.load(self.click_sound)
 
-    def select_wave_file(self):
-        self.stop_metronome()  # Parar o metrônomo antes de carregar um novo arquivo de som
-        file_path = filedialog.askopenfilename(
-            filetypes=[("Wave Files", "*.wav")], 
-            title="Select a .wav file"
-        )
-        if file_path:
-            self.click_sound = file_path
-            mixer.music.load(self.click_sound)  # Carrega o arquivo .wav selecionado
-            self.sound_option_var.set(2)  # Garantir que o rádio 'Wave File' fique marcado
-        else:
-            # Se o usuário cancelou, redefinir para o som incorporado
-            self.sound_option_var.set(1)  # Isso vai disparar o on_radio_change para 'Built-in sound'
-
-    def start_metronome(self):
-        try:
-            bpm = int(self.tempo_entry.get())
-            if bpm <= 0:
-                raise ValueError
-            self.running = True
-            self.play_click()
-        except ValueError:
-            messagebox.showerror('Error', 'Please enter a positive integer for BPM.')
-
-    def stop_metronome(self):
-        self.running = False
-        mixer.music.stop()
-        if self.after_id:
-            self.after_cancel(self.after_id)
-            self.after_id = None
-
-    def play_click(self):
-        if self.running:
-            mixer.music.play()
-            # Agora o after_id leva em conta o valor atual do BPM diretamente do slider.
-            self.after_id = self.after(int(60 / self.tempo_slider.get() * 1000), self.play_click)
-
-    def update_bpm_from_slider(self, value):
+    def on_slider_release(self, event=None):
+        bpm = self.tempo_slider.get()
         self.tempo_entry.delete(0, tk.END)
-        self.tempo_entry.insert(0, value)
-        if self.running:
-            # Restart the metronome with new BPM
-            self.stop_metronome()
-            self.start_metronome()
+        self.tempo_entry.insert(0, str(bpm))
+        self.update_metronome_tempo(bpm)
 
     def update_slider_from_entry(self, event=None):
         try:
             bpm = int(self.tempo_entry.get())
-            if bpm < 20 or bpm > 240:
-                # Restringir o valor de BPM para estar dentro dos limites do slider
+            if MIN_BPM <= bpm <= MAX_BPM:
+                self.tempo_slider.set(bpm)
+                self.update_metronome_tempo(bpm)
+            else:
                 raise ValueError
-            self.tempo_slider.set(bpm)
-            if self.running:
-                # Reinicia o metrônomo se o valor de BPM for alterado manualmente
-                self.stop_metronome()
-                self.start_metronome()
         except ValueError:
-            messagebox.showerror('Error', 'Please enter a positive integer for BPM between 20 and 240.')
+            messagebox.showerror("Error", "Please enter a valid BPM between 20 and 240.")
 
-if __name__ == '__main__':
+    def update_metronome_tempo(self, bpm):
+        if self.metronome_running:
+            self.stop_metronome()
+            self.start_metronome(bpm)
+
+    def setup_bindings(self):
+        self.bind('<space>', lambda event: self.toggle_metronome())
+        self.bind('<Return>', lambda event: self.toggle_metronome())
+        self.bind('<Escape>', lambda event: self.stop_metronome())
+
+    def toggle_metronome(self):
+        if self.metronome_running:
+            self.stop_metronome()
+        else:
+            bpm = self.tempo_slider.get()
+            self.start_metronome(bpm)
+
+    def start_metronome(self, bpm):
+        self.metronome_running = True
+        delay = self.bpm_to_ms(bpm)
+        self.schedule_tick(delay)
+
+    def stop_metronome(self):
+        self.metronome_running = False
+        if self.after_id:
+            self.after_cancel(self.after_id)
+            self.after_id = None
+
+    def bpm_to_ms(self, bpm):
+        return int((60.0 / bpm) * 1000)
+
+    def schedule_tick(self, delay):
+        self.play_click()
+        if self.metronome_running:
+            self.after_id = self.after(delay, self.schedule_tick, delay)
+
+    def play_click(self):
+        mixer.music.play()
+
+if __name__ == "__main__":
     app = MetronomeApp()
     app.mainloop()

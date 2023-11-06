@@ -1,22 +1,14 @@
-import os
-import sys
 import tkinter as tk
 from tkinter import filedialog, messagebox
-from pygame import mixer
-
-# Constantes
-DEFAULT_BPM = 120
-MIN_BPM = 20
-MAX_BPM = 240
-WINDOW_WIDTH = 350
-WINDOW_HEIGHT = 155
-SOUND_FILE = 'click.wav'
+from audio_manager import AudioManager
+from utils import get_data_directory
+from constants import DEFAULT_BPM, MIN_BPM, MAX_BPM, WINDOW_WIDTH, WINDOW_HEIGHT
 
 class MetronomeApp(tk.Tk):
     def __init__(self):
         super().__init__()
+        self.audio_manager = AudioManager(get_data_directory())
         self.initialize_window()
-        self.initialize_mixer()
         self.create_widgets()
         self.setup_bindings()
         
@@ -27,23 +19,12 @@ class MetronomeApp(tk.Tk):
         self.title('Metronome 1.0')
         self.set_window_position(WINDOW_WIDTH, WINDOW_HEIGHT)
         self.resizable(False, False)
-        self.datadir = self.get_data_directory()
-        
-    def initialize_mixer(self):
-        mixer.init()
-        self.click_sound = os.path.join(self.datadir, SOUND_FILE)
-        mixer.music.load(self.click_sound)
-
-    def get_data_directory(self):
-        if getattr(sys, 'frozen', False):
-            return sys._MEIPASS
-        return os.path.dirname(__file__)
 
     def set_window_position(self, width, height):
         screen_width = self.winfo_screenwidth()
         screen_height = self.winfo_screenheight()
-        center_x = int(screen_width/2 - width / 2)
-        center_y = int(screen_height/2 - height / 2)
+        center_x = int(screen_width / 2 - width / 2)
+        center_y = int(screen_height / 2 - height / 2)
         self.geometry(f'{width}x{height}+{center_x}+{center_y}')
 
     def create_widgets(self):
@@ -118,18 +99,15 @@ class MetronomeApp(tk.Tk):
 
     def handle_sound_selection(self):
         self.stop_metronome()
-        self.load_click_sound()
-
-    def load_click_sound(self):
-        if self.sound_option_var.get() == 1:
-            self.click_sound = os.path.join(self.datadir, SOUND_FILE)
-        else:
+        if self.sound_option_var.get() == 2:
             file_path = filedialog.askopenfilename(
-                filetypes=[("Wave Files", "*.wav")], 
+                filetypes=[("Wave Files", "*.wav")],
                 title="Select a .wav file"
             )
-            self.click_sound = file_path or self.click_sound
-        mixer.music.load(self.click_sound)
+            if file_path:
+                self.audio_manager.load_click_sound(self.sound_option_var.get(), file_path)
+        else:
+            self.audio_manager.load_click_sound(self.sound_option_var.get())
 
     def on_slider_release(self, event=None):
         bpm = self.tempo_slider.get()
@@ -144,49 +122,42 @@ class MetronomeApp(tk.Tk):
                 self.tempo_slider.set(bpm)
                 self.update_metronome_tempo(bpm)
             else:
-                raise ValueError
+                messagebox.showinfo("BPM Out of Range", f"Please enter a value between {MIN_BPM} and {MAX_BPM}.")
         except ValueError:
-            messagebox.showerror("Error", "Please enter a valid BPM between 20 and 240.")
-
-    def update_metronome_tempo(self, bpm):
-        if self.metronome_running:
-            self.stop_metronome()
-            self.start_metronome(bpm)
-
-    def setup_bindings(self):
-        self.bind('<space>', lambda event: self.toggle_metronome())
-        self.bind('<Return>', lambda event: self.toggle_metronome())
-        self.bind('<Escape>', lambda event: self.stop_metronome())
+            # Entry is not a number, ignore it
+            pass
 
     def toggle_metronome(self):
         if self.metronome_running:
             self.stop_metronome()
         else:
-            bpm = self.tempo_slider.get()
-            self.start_metronome(bpm)
+            self.start_metronome()
 
-    def start_metronome(self, bpm):
+    def start_metronome(self):
         self.metronome_running = True
-        delay = self.bpm_to_ms(bpm)
-        self.schedule_tick(delay)
+        self.schedule_tick()
+
+    def schedule_tick(self):
+        bpm = int(self.tempo_entry.get())
+        interval = (60.0 / bpm) * 1000  # milliseconds between ticks
+        self.after_id = self.after(int(interval), self.play_tick)
+
+    def play_tick(self):
+        if self.metronome_running:
+            self.audio_manager.play_click()
+            self.schedule_tick()
 
     def stop_metronome(self):
-        self.metronome_running = False
         if self.after_id:
             self.after_cancel(self.after_id)
             self.after_id = None
+        self.metronome_running = False
 
-    def bpm_to_ms(self, bpm):
-        return int((60.0 / bpm) * 1000)
-
-    def schedule_tick(self, delay):
-        self.play_click()
+    def update_metronome_tempo(self, bpm):
+        # Only updates the tempo if metronome is running
         if self.metronome_running:
-            self.after_id = self.after(delay, self.schedule_tick, delay)
+            self.stop_metronome()
+            self.start_metronome()
 
-    def play_click(self):
-        mixer.music.play()
-
-if __name__ == "__main__":
-    app = MetronomeApp()
-    app.mainloop()
+    def setup_bindings(self):
+        self.bind('<space>', lambda event: self.toggle_metronome())

@@ -9,7 +9,7 @@ DEFAULT_BPM = 120
 MIN_BPM = 20
 MAX_BPM = 240
 WINDOW_WIDTH = 350
-WINDOW_HEIGHT = 150
+WINDOW_HEIGHT = 155
 SOUND_FILE = 'click.wav'
 
 class MetronomeApp(tk.Tk):
